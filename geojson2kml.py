@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import glob
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
@@ -21,7 +22,8 @@ def convert_geojson_to_kml(geojson_data, base_name):
             
         geom_type = geometry.get("type")
         coordinates = geometry.get("coordinates")
-        placemark_name = properties.get("name") or properties.get("Tipe") or f"Objek {geom_type}"
+        # Supports both English "Type" and Indonesian "Tipe" labels
+        placemark_name = properties.get("name") or properties.get("Type") or properties.get("Tipe") or f"Object {geom_type}"
         
         desc_parts = [f"<b>{k}:</b> {v}" for k, v in properties.items()]
         placemark_desc = "<br>".join(desc_parts)
@@ -54,12 +56,35 @@ def convert_geojson_to_kml(geojson_data, base_name):
 
 def main(input_file=None):
     if not input_file:
-        print("\n=== GeoJSON to KML Standalone ===")
-        while True:
-            input_file = input("Masukkan nama file GeoJSON sumber: ").strip()
-            if os.path.exists(input_file):
-                break
-            print(f"Error: File '{input_file}' tidak ditemukan.\n")
+        print("\n=== GeoJSON to KML Converter ===")
+        # Automatically detect any .geojson files in the current folder
+        files_found = glob.glob("*.geojson")
+
+        if files_found:
+            print("\nGeoJSON files found in the current folder:")
+            for idx, file in enumerate(files_found, 1):
+                print(f" [{idx}] {file}")
+            print(" [0] Enter filename manually")
+
+            choice = input("\nSelect file number to process (default: 1): ").strip()
+            if not choice:
+                input_file = files_found[0]
+            elif choice == "0":
+                input_file = input("Enter manual GeoJSON filename: ").strip()
+            else:
+                try:
+                    input_file = files_found[int(choice) - 1]
+                except (ValueError, IndexError):
+                    print("❌ Invalid choice, using the first file.")
+                    input_file = files_found[0]
+        else:
+            input_file = input("Enter source GeoJSON filename (example: output.geojson): ").strip()
+            if not input_file:
+                input_file = "output.geojson"
+
+    if not os.path.exists(input_file):
+        print(f"❌ Error: File '{input_file}' not found.")
+        return
 
     output_file = input_file.rsplit('.', 1)[0] + ".kml"
     base_name = os.path.basename(output_file).rsplit('.', 1)[0]
@@ -68,15 +93,16 @@ def main(input_file=None):
         with open(input_file, 'r', encoding='utf-8') as f:
             geojson_data = json.load(f)
             
+        print(f"⏳ Converting '{input_file}' to KML...")
         kml_bytes = convert_geojson_to_kml(geojson_data, base_name)
         with open(output_file, 'wb') as f:
             f.write(kml_bytes)
             
-        print(f" -> [KML Sukses] File KML disimpan dengan nama: '{output_file}'")
+        print(f" -> [KML Success] KML file saved as: '{output_file}'")
     except Exception as e:
-        print(f"❌ Gagal konversi KML: {str(e)}")
+        print(f"❌ KML conversion failed: {str(e)}")
 
 if __name__ == "__main__":
-    # Jika dipanggil oleh script lain, ambil argumen nama filenya jika ada
+    # If called by another script, get the filename argument if available
     file_arg = sys.argv[1] if len(sys.argv) > 1 else None
     main(file_arg)
