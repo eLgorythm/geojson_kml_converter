@@ -16,10 +16,10 @@ A collection of Python scripts to process, convert, and visualize Google Maps Se
 
 ## 📦 Prerequisites
 
-Ensure you have Python 3.x installed. You can install all dependencies via `main.py` or manually:
+Ensure you have Python 3.x installed. You can install all dependencies via `main.py` (Option 4) or manually:
 
 ```bash
-pip install geopy pandas plotly ijson
+pip install -r requirements.txt
 ```
 
 ## 🛠️ Usage
