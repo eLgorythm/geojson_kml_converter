@@ -16,6 +16,47 @@ from geopy.exc import GeocoderServiceError
 
 geolocator = Nominatim(user_agent="semantic_geojson_namer_v8")
 
+# --- CACHE SYSTEM ---
+CACHE_FILE = "geocoding_cache.json"
+ADDRESS_CACHE = {}
+
+def load_cache():
+    global ADDRESS_CACHE
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                ADDRESS_CACHE = json.load(f)
+        except Exception:
+            ADDRESS_CACHE = {}
+
+def save_cache():
+    try:
+        with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+            json.dump(ADDRESS_CACHE, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"\n⚠️ Warning: Failed to save cache: {e}")
+
+def get_place_name(lat, lng):
+    # Use 5 decimal places for caching (approx 1 meter precision)
+    cache_key = f"{lat:.5f},{lng:.5f}"
+    
+    if cache_key in ADDRESS_CACHE:
+        return ADDRESS_CACHE[cache_key]
+
+    try:
+        # Respect Nominatim's 1 second limit only if we actually hit the API
+        time.sleep(1) 
+        location = geolocator.reverse((lat, lng), timeout=10)
+        address = location.address if location else f"Coordinates ({lat}, {lng})"
+        
+        # Save to cache
+        ADDRESS_CACHE[cache_key] = address
+        save_cache()
+        return address
+    except (GeocoderServiceError, Exception):
+        return f"Coordinates ({lat}, {lng})"
+# --- END CACHE SYSTEM ---
+
 def clean_and_parse_coordinates(lat_lng_str):
     if not lat_lng_str:
         return None
@@ -26,13 +67,14 @@ def clean_and_parse_coordinates(lat_lng_str):
     except ValueError:
         return None
 
-def get_place_name(lat, lng):
-    try:
-        time.sleep(1) 
-        location = geolocator.reverse((lat, lng), timeout=10)
-        return location.address if location else f"Coordinates ({lat}, {lng})"
-    except (GeocoderServiceError, Exception):
-        return f"Coordinates ({lat}, {lng})"
+def print_progress(current, total, prefix='', suffix='', length=30):
+    """Simple text-based progress bar"""
+    if total <= 0: return
+    percent = ("{0:.1f}").format(100 * (current / float(total)))
+    filled_length = int(length * current // total)
+    bar = '█' * filled_length + '-' * (length - filled_length)
+    sys.stdout.write(f'\r{prefix} |{bar}| {percent}% {suffix}')
+    sys.stdout.flush()
 
 def offer_kml_conversion(geojson_file_list):
     """Interactive function to call a separate KML script for each GeoJSON file"""
@@ -58,16 +100,100 @@ def offer_visualization(geojson_file_list):
             for geojson_file in geojson_file_list:
                 if os.path.exists(geojson_file):
                     print(f"⏳ Running 'visualizer.py' for: {geojson_file}...")
-                    # Note: visualizer.py currently takes input via prompts, 
-                    # we might need to modify it slightly for auto-run or just let it prompt.
                     subprocess.run([sys.executable, "visualizer.py"], input=f"1\n", text=True)
         else:
             print("Visualization skipped.")
     except KeyboardInterrupt:
         print("\n[!] Visualization option cancelled.")
 
+def process_segments(segments, data_by_year, specific_mode, total_size=None, f_obj=None):
+    count = 0
+    is_list = isinstance(segments, list)
+    total_count = len(segments) if is_list else None
+
+    for segment in segments:
+        count += 1
+        if not segment or not isinstance(segment, dict): continue
+        
+        # Update Progress Bar
+        if total_size and f_obj:
+            current_pos = f_obj.tell()
+            print_progress(current_pos, total_size, prefix='Progress:', suffix='Complete')
+        elif total_count:
+            print_progress(count, total_count, prefix='Progress:', suffix='Complete')
+
+        start_time = segment.get("startTime")
+        end_time = segment.get("endTime")
+        
+        if start_time and len(start_time) >= 4:
+            year = start_time[:4]
+        else:
+            year = "Unknown"
+
+        if specific_mode and year != specific_mode:
+            continue
+
+        if year not in data_by_year:
+            data_by_year[year] = []
+        
+        try:
+            if "visit" in segment:
+                visit_data = segment["visit"]
+                top_candidate = visit_data.get("topCandidate", {})
+                coords = clean_and_parse_coordinates(top_candidate.get("placeLocation", {}).get("latLng"))
+                if coords:
+                    lng, lat = coords
+                    address = get_place_name(lat, lng)
+                    # Clear line for the log
+                    sys.stdout.write('\r' + ' ' * 100 + '\r')
+                    print(f"📍 [{year}] Found: {address[:70]}...")
+                    data_by_year[year].append({
+                        "type": "Feature",
+                        "geometry": {"type": "Point", "coordinates": coords},
+                        "properties": {
+                            "name": address, "Type": "Place Visit",
+                            "Start Time": start_time, "End Time": end_time,
+                            "Place ID": top_candidate.get("placeId")
+                        }
+                    })
+
+            elif "activity" in segment:
+                activity_data = segment["activity"]
+                start_coords = clean_and_parse_coordinates(activity_data.get("start", {}).get("latLng"))
+                end_coords = clean_and_parse_coordinates(activity_data.get("end", {}).get("latLng"))
+                if start_coords and end_coords:
+                    act_type = activity_data.get("topCandidate", {}).get('type', 'TRAVEL')
+                    data_by_year[year].append({
+                        "type": "Feature",
+                        "geometry": {"type": "LineString", "coordinates": [start_coords, end_coords]},
+                        "properties": {
+                            "name": f"Travel Route ({act_type})", "Type": f"Travel ({act_type})",
+                            "Start Time": start_time, "End Time": end_time,
+                            "Distance (Meters)": activity_data.get("distanceMeters")
+                        }
+                    })
+
+            elif "timelinePath" in segment:
+                path_points = segment["timelinePath"]
+                line_coordinates = [clean_and_parse_coordinates(p.get("point")) for p in path_points if clean_and_parse_coordinates(p.get("point"))]
+                if len(line_coordinates) > 1:
+                    data_by_year[year].append({
+                        "type": "Feature",
+                        "geometry": {"type": "LineString", "coordinates": line_coordinates},
+                        "properties": {"name": "Detail Path", "Type": "Detailed Route", "Start Time": start_time, "End Time": end_time}
+                    })
+
+        except KeyboardInterrupt:
+            print("\n\n⚠️ Forcefully stopped by user (Ctrl+C)!")
+            break
+    
+    if total_size: print_progress(total_size, total_size, prefix='Progress:', suffix='Complete')
+    elif total_count: print_progress(total_count, total_count, prefix='Progress:', suffix='Complete')
+    print()
+
 def main():
     print("=== Semantic JSON to Yearly/Specific GeoJSON ===")
+    load_cache() # Load existing geocoding results
     
     if not HAS_IJSON:
         print("⚠️  Warning: 'ijson' library not found. Falling back to standard 'json' library.")
@@ -124,12 +250,11 @@ def main():
     try:
         print("\n⏳ Processing coordinates... (Press Ctrl+C anytime to stop & save partial results)")
         
-        # Use ijson if available for streaming large files
         if HAS_IJSON:
+            file_size = os.path.getsize(input_filename)
             with open(input_filename, 'rb') as f:
-                # Support both structures: {"semanticSegments": [...]} or just [...]
-                segments = ijson.items(f, 'semanticSegments.item')
-                process_segments(segments, data_by_year, specific_mode)
+                segments = ijson.items(f, 'semanticSegments.item', use_float=True)
+                process_segments(segments, data_by_year, specific_mode, total_size=file_size, f_obj=f)
         else:
             with open(input_filename, 'r', encoding='utf-8') as f:
                 source_data = json.load(f)
@@ -157,72 +282,6 @@ def main():
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")
-
-def process_segments(segments, data_by_year, specific_mode):
-    for segment in segments:
-        if not segment or not isinstance(segment, dict): continue
-        start_time = segment.get("startTime")
-        end_time = segment.get("endTime")
-        
-        if start_time and len(start_time) >= 4:
-            year = start_time[:4]
-        else:
-            year = "Unknown"
-
-        if specific_mode and year != specific_mode:
-            continue
-
-        if year not in data_by_year:
-            data_by_year[year] = []
-        
-        try:
-            if "visit" in segment:
-                visit_data = segment["visit"]
-                top_candidate = visit_data.get("topCandidate", {})
-                coords = clean_and_parse_coordinates(top_candidate.get("placeLocation", {}).get("latLng"))
-                if coords:
-                    lng, lat = coords
-                    address = get_place_name(lat, lng)
-                    print(f"📍 [{year}] Address found: {address}")
-                    data_by_year[year].append({
-                        "type": "Feature",
-                        "geometry": {"type": "Point", "coordinates": coords},
-                        "properties": {
-                            "name": address, "Type": "Place Visit",
-                            "Start Time": start_time, "End Time": end_time,
-                            "Place ID": top_candidate.get("placeId")
-                        }
-                    })
-
-            elif "activity" in segment:
-                activity_data = segment["activity"]
-                start_coords = clean_and_parse_coordinates(activity_data.get("start", {}).get("latLng"))
-                end_coords = clean_and_parse_coordinates(activity_data.get("end", {}).get("latLng"))
-                if start_coords and end_coords:
-                    act_type = activity_data.get("topCandidate", {}).get('type', 'TRAVEL')
-                    data_by_year[year].append({
-                        "type": "Feature",
-                        "geometry": {"type": "LineString", "coordinates": [start_coords, end_coords]},
-                        "properties": {
-                            "name": f"Travel Route ({act_type})", "Type": f"Travel ({act_type})",
-                            "Start Time": start_time, "End Time": end_time,
-                            "Distance (Meters)": activity_data.get("distanceMeters")
-                        }
-                    })
-
-            elif "timelinePath" in segment:
-                path_points = segment["timelinePath"]
-                line_coordinates = [clean_and_parse_coordinates(p.get("point")) for p in path_points if clean_and_parse_coordinates(p.get("point"))]
-                if len(line_coordinates) > 1:
-                    data_by_year[year].append({
-                        "type": "Feature",
-                        "geometry": {"type": "LineString", "coordinates": line_coordinates},
-                        "properties": {"name": "Detail Path", "Type": "Detailed Route", "Start Time": start_time, "End Time": end_time}
-                    })
-
-        except KeyboardInterrupt:
-            print("\n\n⚠️ Forcefully stopped by user (Ctrl+C)!")
-            break
 
 if __name__ == "__main__":
     main()
