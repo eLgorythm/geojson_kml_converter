@@ -44,7 +44,7 @@ python3 json2geojson.py
 3. Tentukan awalan nama file output (Default: `output`).
 4. Tekan `Ctrl+C` kapan saja jika ingin menyudahi pencarian alamat internet dan menyimpan hasil sementara.
 5. Di akhir proses, ketik `y` jika ingin langsung melahirkan file kembar berformat `.kml`.
-6. Kamu bisa konversi geojson ke kml, secara terpisah.
+6. Kamu bisa konversi geojson ke `.kml` kapan saja.
 ```bash
 python3 geojson2kml.py
 ```
