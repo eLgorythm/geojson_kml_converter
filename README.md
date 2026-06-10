@@ -48,7 +48,7 @@ python3 json2geojson.py
 ### 2. Membuat Grafik Peta Rute & Tabel Interaktif
 Setelah file GeoJSON terbentuk, jalankan script visualisasi:
 ```bash
-python3 map.py
+python3 visualizer.py
 ```
 **Alur Interaksi:**
 1. Script akan otomatis memindai folder dan menampilkan daftar file GeoJSON yang tersedia. Pilih nomor urut berkas yang ingin digambar.
