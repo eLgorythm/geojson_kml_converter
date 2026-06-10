@@ -62,7 +62,7 @@ python3 visualizer.py
 
 Setelah seluruh script dijalankan, manajemen folder Anda akan terarsip rapi seperti berikut:
 ```text
-├── [your_json_file].json         # File sumber dari Google Maps
+├── raw_json.json         # File sumber dari Google Maps
 ├── json2geojson.py   # Script converter utama
 ├── geojson2kml.py           # Script konversi KML terpisah
 ├── visualizer.py                   # Script visualisasi peta & tabel
