@@ -1,27 +1,27 @@
 # Google Location History (Semantic JSON) to GeoJSON & KML Multi-Converter
 
-Repositori ini berisi seperangkat alat otomasi berbasis Python untuk mengekstrak, menyaring, dan memvisualisasikan data **Semantic JSON** (format data dari Google Maps Timeline / Google Location History) menjadi file spasial standar industri **GeoJSON** dan **KML**, lengkap dengan fitur otomatis terjemahan nama alamat (*Reverse Geocoding*) dan dasbor peta interaktif.
+This repository provides a set of Python-based automation tools to extract, filter, and visualize **Semantic JSON** data (exported from Google Maps Timeline / Google Location History) into industry-standard spatial formats like **GeoJSON** and **KML**. It features automatic address translation (*Reverse Geocoding*) and an interactive dual-dashboard mapping system.
 
-## ✨ Fitur Utama
+## ✨ Key Features
 
-- **Double-Converter Spasial**: Mengonversi JSON riwayat lokasi dari Google ke format GeoJSON tunggal dan secara otomatis menawarkan ekspor instan ke berkas KML (`.kml`) untuk Google Earth.
-- **Penyaringan Pintar Berbasis Tahun**: 
-  - *Mode Lengkap*: Memproses semua data spasial dan memisahnya otomatis per file tahun (`_2023.geojson`, `_2024.geojson`, dll).
-  - *Mode Spesifik*: Hanya menyaring dan memproses data pada tahun tertentu (misal: `2025`) guna memangkas durasi pemrosesan.
-- **Auto Reverse-Geocoding**: Mengubah data koordinat mentah (`lat, lng`) menjadi alamat jalan, desa, dan kota asli menggunakan API gratis dari OpenStreetMap (Nominatim).
-- **Graceful Interrupt Handler (Ctrl+C)**: Jika proses dihentikan paksa di tengah jalan, script akan mengamankan dan menutup struktur file spasial seadanya agar data yang terproses tidak rusak/korup.
-- **Validasi Terminal yang Ketat**: Dilengkapi dengan pencegahan salah input di menu terminal.
-- **Dasbor Visualisasi Terpisah (`visualizer.py`)**: 
-  - Mengonversi GeoJSON menjadi peta rute jalan interaktif (`peta_rute_*.html`) menggunakan teknologi `go.Scattermap` terbaru dari Plotly.
-  - Menarik garis kronologis perjalanan penghubung dari titik A ke titik B.
-  - Dilengkapi tombol navigasi Zoom In/Out manual dan reset view.
-  - Membuat tabel HTML terpisah (`tabel_kronologis_*.html`) dengan urutan data **terbaru ke terlama** dan pembersihan teks alamat panjang agar tidak tumpang tindih.
+- **Spatial Double-Converter**: Converts raw Google Location History JSON into a unified GeoJSON file and automatically prompts for an instant KML (`.kml`) export for Google Earth.
+- **Smart Year-Based Filtering**:
+  - *Full Mode*: Processes all location segments and automatically splits them into individual yearly files (`_2023.geojson`, `_2024.geojson`, etc.).
+  - *Specific Mode*: Targets and isolates data for a single chosen year (e.g., `2025`) to significantly minimize processing time.
+- **Auto Reverse-Geocoding**: Translates raw coordinate pairs (`lat, lng`) into human-readable street names, villages, and cities using the free OpenStreetMap (Nominatim) API.
+- **Graceful Interrupt Handler (Ctrl+C)**: If the processing loop is manually stopped, the script intercepts the break, instantly packages all successfully processed features, and closes the spatial file format properly to avoid data corruption.
+- **Strict Terminal Validation**: Features foolproof user-input protection menus in the terminal.
+- **Isolated Visualizer Dashboard (`visualizer.py`)**:
+  - Converts GeoJSON paths into a standalone interactive map (`peta_rute_*.html`) powered by Plotly's latest `go.Scattermap` engine.
+  - Draws explicit chronological journey lines tracing routes from point A to point B.
+  - Equipped with standard on-map Zoom In/Out control buttons and view reset triggers.
+  - Generates a completely separate HTML data table (`tabel_kronologis_*.html`) sorted from **newest to oldest** with automated long-address truncating to eliminate text overlapping.
 
 ---
 
-## 🛠️ Kebutuhan Sistem & Instalasi
+## 🛠️ System Requirements & Installation
 
-Pastikan komputer Anda sudah terpasang **Python 3.10+**. Instal library eksternal yang dibutuhkan melalui terminal dengan perintah berikut:
+Ensure you have **Python 3.10+** installed on your system. Install the required external packages via your terminal using the following command:
 
 ```bash
 python3 -m pip install pandas plotly geopy openpyxl
@@ -29,54 +29,56 @@ python3 -m pip install pandas plotly geopy openpyxl
 
 ---
 
-## 🚀 Cara Penggunaan
+## 🚀 How to Use
 
-Pastikan file **Semantic JSON** hasil unduhan dari Google Takeout Anda diletakkan di dalam folder yang sama dengan script ini.
+Place your downloaded **Semantic JSON** file (from Google Takeout) inside the same folder directory as these scripts.
 
-### 1. Mengonversi JSON Mentah ke GeoJSON & KML
-Jalankan script converter utama:
+### 1. Converting Raw JSON to GeoJSON & KML
+Execute the primary converter utility:
 ```bash
 python3 json2geojson.py
 ```
-**Alur Interaksi:**
-1. Masukkan nama file JSON sumber Anda.
-2. Pilih Mode Konversi Tahun (`1` untuk semua tahun, `2` untuk tahun spesifik saja).
-3. Tentukan awalan nama file output (Default: `output`).
-4. Tekan `Ctrl+C` kapan saja jika ingin menyudahi pencarian alamat internet dan menyimpan hasil sementara.
-5. Di akhir proses, ketik `y` jika ingin langsung melahirkan file kembar berformat `.kml`.
-6. Kamu bisa konversi geojson ke `.kml` kapan saja.
+**Interactive Workflow:**
+1. Enter your source JSON file name.
+2. Select the Year Conversion Mode (`1` for all years, `2` for a specific year query).
+3. Set your custom output prefix name (Default: `output`).
+4. Press `Ctrl+C` at any point to stop fetching live web addresses and safely store the current snapshot.
+5. At the end of the script execution, type `y` to instantly generate a matching `.kml` file.
+
+*Note: You can also manually invoke standalone GeoJSON to KML conversions at any time:*
 ```bash
 python3 geojson2kml.py
 ```
-### 2. Membuat Grafik Peta Rute & Tabel Interaktif
-Setelah file GeoJSON terbentuk, jalankan script visualisasi:
+
+### 2. Generating Interactive Maps & Data Tables
+Once your GeoJSON file is generated, launch the layout visualizer:
 ```bash
 python3 visualizer.py
 ```
-**Alur Interaksi:**
-1. Script akan otomatis memindai folder dan menampilkan daftar file GeoJSON yang tersedia. Pilih nomor urut berkas yang ingin digambar.
-2. Browser internet Anda akan otomatis membuka 2 tab baru:
-   - **`peta_rute_*.html`**: Peta rute berbasis *CartoDB Positron* (bebas pemblokiran).
-   - **`tabel_kronologis_*.html`**: Tabel riwayat perjalanan rapi dari waktu terbaru ke terlama.
+**Interactive Workflow:**
+1. The script automatically scans the working directory and lists all available GeoJSON files. Type the corresponding index number of the file you want to map.
+2. Your default web browser will instantly fire open two separate tabs:
+   - **`peta_rute_*.html`**: A full-canvas route map built over block-free *CartoDB Positron* layers.
+   - **`tabel_kronologis_*.html`**: A clean, readable timeline log ordered from your most recent trips down to the oldest.
 
 ---
 
-## 📂 Contoh Struktur Output Berkas
+## 📂 Sample Directory Output Structure
 
-Setelah seluruh script dijalankan, manajemen folder Anda akan terarsip rapi seperti berikut:
+After executing the workflows, your repository directory will be cleanly archived as follows:
 ```text
-├── raw_json.json         # File sumber dari Google Maps
-├── json2geojson.py   # Script converter utama
-├── geojson2kml.py           # Script konversi KML terpisah
-├── visualizer.py                   # Script visualisasi peta & tabel
+├── raw_json.json         # Raw source data from Google Takeout
+├── json2geojson.py       # Main year-splitter and coordinate compiler
+├── geojson2kml.py        # Independent GeoJSON-to-KML engine
+├── visualizer.py         # Tab-isolated map and matrix generator
 │
-├── output_2025.geojson     # Hasil GeoJSON per tahun
-├── output_2025.kml         # Hasil KML per tahun (Google Earth)
-├── peta_rute_output_2025.html     # Visual Peta Interaktif
-└── tabel_kronologis_output_2025.html # Visual Tabel Terbaru->Terlama
+├── output_2025.geojson   # Extracted spatial GeoJSON segment
+├── output_2025.kml       # Generated KML segment (Google Earth ready)
+├── peta_rute_output_2025.html        # Interactive Path Visual Map
+└── tabel_kronologis_output_2025.html # Newest-to-Oldest Data Table Layout
 ```
 
 ---
 
-## 📝 Catatan Penting Penggunaan API Alamat
-Script ini menggunakan server pencarian **OpenStreetMap Nominatim** gratis yang menerapkan kebijakan pembatasan akses ketat (1 request per detik). Oleh karena itu, dipasang fungsi `time.sleep(1)` pada script utama. Jika dataset riwayat lokasi Anda memiliki ribuan titik kunjungan, proses konversi akan memakan waktu. Gunakan fitur **Mode Spesifik Tahun** atau interupsi **Ctrl+C** untuk membatasi waktu tunggu sesuai kebutuhan Anda.
+## 📝 Important API Usage Policy Notice
+This script queries the public **OpenStreetMap Nominatim** search engine server, which strictly enforces a fair-use rate limit (maximum 1 request per second). To remain compliant, a `time.sleep(1)` lag is implemented within the address-fetching loop. If your location history dataset contains thousands of timeline footprints, conversion tasks will scale up in duration. We highly recommend utilizing the **Specific Year Mode** filter or the **Ctrl+C** graceful halt mechanism to easily control your queue times.
