@@ -11,11 +11,11 @@ Repositori ini berisi seperangkat alat otomasi berbasis Python untuk mengekstrak
 - **Auto Reverse-Geocoding**: Mengubah data koordinat mentah (`lat, lng`) menjadi alamat jalan, desa, dan kota asli menggunakan API gratis dari OpenStreetMap (Nominatim).
 - **Graceful Interrupt Handler (Ctrl+C)**: Jika proses dihentikan paksa di tengah jalan, script akan mengamankan dan menutup struktur file spasial seadanya agar data yang terproses tidak rusak/korup.
 - **Validasi Terminal yang Ketat**: Dilengkapi dengan pencegahan salah input di menu terminal.
-- **Dasbor Visualisasi Terpisah (`map.py`)**: 
-  - Mengonversi GeoJSON menjadi peta rute jalan interaktif (`peta_rute_interaktif.html`) menggunakan teknologi `go.Scattermap` terbaru dari Plotly.
+- **Dasbor Visualisasi Terpisah (`visualizer.py`)**: 
+  - Mengonversi GeoJSON menjadi peta rute jalan interaktif (`peta_rute_*.html`) menggunakan teknologi `go.Scattermap` terbaru dari Plotly.
   - Menarik garis kronologis perjalanan penghubung dari titik A ke titik B.
   - Dilengkapi tombol navigasi Zoom In/Out manual dan reset view.
-  - Membuat tabel HTML terpisah (`tabel_kronologis_rapi.html`) dengan urutan data **terbaru ke terlama** dan pembersihan teks alamat panjang agar tidak tumpang tindih.
+  - Membuat tabel HTML terpisah (`tabel_kronologis_*.html`) dengan urutan data **terbaru ke terlama** dan pembersihan teks alamat panjang agar tidak tumpang tindih.
 
 ---
 
@@ -36,7 +36,7 @@ Pastikan file **Semantic JSON** hasil unduhan dari Google Takeout Anda diletakka
 ### 1. Mengonversi JSON Mentah ke GeoJSON & KML
 Jalankan script converter utama:
 ```bash
-python3 converter_per_tahun.py
+python3 json2geojson.py
 ```
 **Alur Interaksi:**
 1. Masukkan nama file JSON sumber Anda.
@@ -53,8 +53,8 @@ python3 map.py
 **Alur Interaksi:**
 1. Script akan otomatis memindai folder dan menampilkan daftar file GeoJSON yang tersedia. Pilih nomor urut berkas yang ingin digambar.
 2. Browser internet Anda akan otomatis membuka 2 tab baru:
-   - **`peta_rute_interaktif.html`**: Peta rute berbasis *CartoDB Positron* (bebas pemblokiran).
-   - **`tabel_kronologis_rapi.html`**: Tabel riwayat perjalanan rapi dari waktu terbaru ke terlama.
+   - **`peta_rute_*.html`**: Peta rute berbasis *CartoDB Positron* (bebas pemblokiran).
+   - **`tabel_kronologis_*.html`**: Tabel riwayat perjalanan rapi dari waktu terbaru ke terlama.
 
 ---
 
@@ -62,10 +62,10 @@ python3 map.py
 
 Setelah seluruh script dijalankan, manajemen folder Anda akan terarsip rapi seperti berikut:
 ```text
-├── data_mentah.json         # File sumber dari Google Maps
-├── converter_per_tahun.py   # Script converter utama
+├── [your_json_file].json         # File sumber dari Google Maps
+├── json2geojson.py   # Script converter utama
 ├── geojson2kml.py           # Script konversi KML terpisah
-├── map.py                   # Script visualisasi peta & tabel
+├── visualizer.py                   # Script visualisasi peta & tabel
 │
 ├── output_2025.geojson     # Hasil GeoJSON per tahun
 ├── output_2025.kml         # Hasil KML per tahun (Google Earth)
