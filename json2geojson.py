@@ -76,36 +76,6 @@ def print_progress(current, total, prefix='', suffix='', length=30):
     sys.stdout.write(f'\r{prefix} |{bar}| {percent}% {suffix}')
     sys.stdout.flush()
 
-def offer_kml_conversion(geojson_file_list):
-    """Interactive function to call a separate KML script for each GeoJSON file"""
-    print("\n------------------------------------------------")
-    try:
-        choice = input("Do you want to convert the GeoJSON results to KML format? (y/n): ").strip().lower()
-        if choice in ['y', 'yes']:
-            for geojson_file in geojson_file_list:
-                if os.path.exists(geojson_file):
-                    print(f"⏳ Running separate script 'geojson2kml.py' with source: {geojson_file}...")
-                    subprocess.run([sys.executable, "geojson2kml.py", geojson_file])
-        else:
-            print("KML conversion skipped.")
-    except KeyboardInterrupt:
-        print("\n[!] KML option cancelled.")
-
-def offer_visualization(geojson_file_list):
-    """Interactive function to offer visualization after conversion"""
-    print("\n------------------------------------------------")
-    try:
-        choice = input("Do you want to visualize the results in a web browser? (y/n): ").strip().lower()
-        if choice in ['y', 'yes']:
-            for geojson_file in geojson_file_list:
-                if os.path.exists(geojson_file):
-                    print(f"⏳ Running 'visualizer.py' for: {geojson_file}...")
-                    subprocess.run([sys.executable, "visualizer.py"], input=f"1\n", text=True)
-        else:
-            print("Visualization skipped.")
-    except KeyboardInterrupt:
-        print("\n[!] Visualization option cancelled.")
-
 def process_segments(segments, data_by_year, specific_mode, total_size=None, f_obj=None):
     count = 0
     is_list = isinstance(segments, list)
@@ -192,8 +162,9 @@ def process_segments(segments, data_by_year, specific_mode, total_size=None, f_o
     print()
 
 def main():
-    print("=== Semantic JSON to Yearly/Specific GeoJSON ===")
-    load_cache() # Load existing geocoding results
+    print("\n=== Semantic JSON to Yearly/Specific GeoJSON ===")
+    print(" (Enter '0' or 'back' to return to Master Menu)\n")
+    load_cache()
     
     if not HAS_IJSON:
         print("⚠️  Warning: 'ijson' library not found. Falling back to standard 'json' library.")
@@ -202,13 +173,13 @@ def main():
     # 1. Input source JSON filename
     while True:
         try:
-            input_filename = input("Enter source JSON filename (example: data.json): ").strip()
+            input_filename = input("Enter source JSON filename: ").strip()
+            if input_filename.lower() in ['0', 'back', 'b']: return
             if os.path.exists(input_filename):
                 break
             print(f"Error: File '{input_filename}' not found.\n")
         except KeyboardInterrupt:
-            print("\n\n[!] Program closed.")
-            sys.exit(0)
+            return
 
     # 2. SELECT YEAR CONVERSION MODE MENU
     specific_mode = None
@@ -216,15 +187,18 @@ def main():
         print("\nSelect Year Conversion Mode:")
         print(" [1] Complete Conversion (All years separated automatically)")
         print(" [2] Specific Year Conversion Only (Example: 2025)")
+        print(" [0] Back to Master Menu")
 
         while True:
-            mode_choice = input("Enter choice (1/2): ").strip()
+            mode_choice = input("Enter choice: ").strip()
+            if mode_choice in ['0', 'back', 'b']: return
             if mode_choice == "1":
                 print("-> Active Mode: Complete conversion for all years.\n")
                 break
             elif mode_choice == "2":
                 while True:
-                    specific_mode = input("Enter year to convert (example: 2025): ").strip()
+                    specific_mode = input("Enter year to convert (or '0' for back): ").strip()
+                    if specific_mode in ['0', 'back', 'b']: return
                     if specific_mode.isdigit() and len(specific_mode) == 4:
                         break
                     print("❌ Error: Year format must be 4 digits (Example: 2025).")
@@ -233,17 +207,16 @@ def main():
             else:
                 print("❌ Invalid choice! Please enter either 1 or 2.")
     except KeyboardInterrupt:
-        print("\n\n[!] Program closed.")
-        sys.exit(0)
+        return
 
     # 3. Input file prefix
     try:
-        base_prefix = input("Enter prefix for output GeoJSON filenames (default: output): ").strip()
+        base_prefix = input("Enter prefix for output filenames (default: output, '0' for back): ").strip()
+        if base_prefix in ['0', 'back', 'b']: return
         if not base_prefix: base_prefix = "output"
         if base_prefix.endswith(".geojson"): base_prefix = base_prefix[:-8]
     except KeyboardInterrupt:
-        print("\n\n[!] Program closed.")
-        sys.exit(0)
+        return
 
     data_by_year = {}
 
@@ -272,13 +245,10 @@ def main():
                     json.dump({"type": "FeatureCollection", "features": feature_list}, f, indent=2, ensure_ascii=False)
                 print(f" -> Successfully saved {len(feature_list)} features to '{yearly_output_file}'")
                 created_files.append(yearly_output_file)
+            
+            print("\n✅ All conversions complete.")
         else:
             print("\n❌ No data processed based on your selection criteria.")
-
-        # Automation prompts
-        if created_files:
-            offer_kml_conversion(created_files)
-            offer_visualization(created_files)
 
     except Exception as e:
         print(f"An error occurred: {str(e)}")

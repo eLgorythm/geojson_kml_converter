@@ -24,10 +24,8 @@ def parse_geojson(geojson_file):
     for feature in features:
         properties = feature.get("properties", {})
         geometry = feature.get("geometry", {})
-        # Updated to check for "Type" instead of "Tipe"
         tipe = properties.get("Type", "")
 
-        # Updated to check for "Place Visit" instead of "Kunjungan Tempat"
         if tipe == "Place Visit" and geometry.get("type") == "Point":
             coords = geometry.get("coordinates")
             if not coords or len(coords) < 2:
@@ -39,7 +37,6 @@ def parse_geojson(geojson_file):
             nama_tempat_raw = properties.get("name") or "Unknown Place"
             nama_tempat = clean_address(nama_tempat_raw)
 
-            # Updated property keys
             waktu_mulai_raw = properties.get("Start Time", "")
             waktu_selesai_raw = properties.get("End Time", "")
 
@@ -72,18 +69,13 @@ def parse_geojson(geojson_file):
 
     df = pd.DataFrame(rows)
     if not df.empty:
-        # Sort from newest to oldest
         df = df.sort_values(by="_sort_date", ascending=False).reset_index(drop=True)
     return df
 
 def create_separate_map(df, suffix_name):
-    """Creates an HTML file specifically for the route map using the latest Scattermap module"""
     fig_map = go.Figure()
-
-    # Reverse temporarily for chronological rendering of route lines
     df_chronological = df.iloc[::-1]
 
-    # 1. Add connecting route lines (Using go.Scattermap)
     for i in range(len(df_chronological) - 1):
         origin = df_chronological.iloc[i]
         destination = df_chronological.iloc[i+1]
@@ -96,7 +88,6 @@ def create_separate_map(df, suffix_name):
             hoverinfo="skip"
         ))
 
-    # 2. Add location pin markers (Using go.Scattermap)
     fig_map.add_trace(go.Scattermap(
         lat=df["Latitude"],
         lon=df["Longitude"],
@@ -124,16 +115,11 @@ def create_separate_map(df, suffix_name):
     )
 
     output_map = f"route_map_{suffix_name}.html"
-    config_options = {
-        'modeBarButtonsToAdd': ['zoomInMap', 'zoomOutMap', 'resetViewMap'],
-        'displayModeBar': True
-    }
-    fig_map.write_html(output_map, config=config_options)
+    fig_map.write_html(output_map)
     print(f"👉 MAP file saved at: '{output_map}'")
     return output_map
 
 def create_separate_table(df, suffix_name):
-    """Creates an HTML file specifically for the table chart"""
     fig_table = go.Figure(data=[go.Table(
         header=dict(
             values=["Day", "Date", "Place Name", "Visit Time"],
@@ -160,54 +146,46 @@ def create_separate_table(df, suffix_name):
     return output_table
 
 def main():
-    print("=== GeoJSON to Separate Map & Table Converter (Yearly Compatible) ===")
-
-    # Automatically detect any .geojson files in the current folder
+    print("\n=== GeoJSON to Map & Table Converter ===")
     files_found = glob.glob("*.geojson")
 
     if files_found:
         print("\nGeoJSON files found in the current folder:")
         for idx, file in enumerate(files_found, 1):
             print(f" [{idx}] {file}")
-        print(" [0] Enter filename manually")
+        print(" [0] Back to Master Menu")
 
-        choice = input("\nSelect file number to process (default: 1): ").strip()
-        if not choice:
-            input_file = files_found[0]
-        elif choice == "0":
-            input_file = input("Enter manual GeoJSON filename: ").strip()
+        choice = input("\nSelect file number to process: ").strip()
+        if not choice or choice in ['0', 'back', 'b']:
+            return
         else:
             try:
                 input_file = files_found[int(choice) - 1]
             except (ValueError, IndexError):
-                print("❌ Invalid choice, using the first file.")
-                input_file = files_found[0]
+                print("❌ Invalid choice.")
+                return
     else:
-        input_file = input("Enter GeoJSON filename (default: output.geojson): ").strip()
-        if not input_file:
-            input_file = "output.geojson"
+        input_file = input("Enter GeoJSON filename (or '0' for back): ").strip()
+        if not input_file or input_file in ['0', 'back', 'b']:
+            return
 
     if not os.path.exists(input_file):
         print(f"❌ Error: File '{input_file}' not found.")
-        sys.exit(1)
+        return
 
-    # Get filename without extension for HTML output naming
     suffix_name = os.path.splitext(os.path.basename(input_file))[0]
-
-    print(f"⏳ Splitting map and table processing for '{input_file}'...")
+    print(f"⏳ Processing '{input_file}'...")
     df = parse_geojson(input_file)
 
     if df.empty:
-        print("❌ No valid place visit data to process.")
+        print("❌ No valid place visit data found.")
         return
 
-    file_peta = create_separate_map(df, suffix_name)
-    file_tabel = create_separate_table(df, suffix_name)
-
-    print("\n Conversion Successful! Opening results in your browser...")
-    import webbrowser
-    webbrowser.open('file://' + os.path.realpath(file_peta))
-    webbrowser.open('file://' + os.path.realpath(file_tabel))
+    create_separate_map(df, suffix_name)
+    create_separate_table(df, suffix_name)
+    
+    print("\n✅ Conversion Successful!")
+    input("Press Enter to continue...")
 
 if __name__ == "__main__":
     main()
